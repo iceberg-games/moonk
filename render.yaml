@@ -1,0 +1,17 @@
+# Blueprint for the MOONK multiplayer server on Render.
+# Create the service from this file after the moonkvr GitHub repo exists.
+# Use the FREE web service plan as approved (note: free instances spin down after
+# ~15 minutes idle and take about a minute to wake).
+services:
+  - type: web
+    name: moonk-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node server/server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
+        value: "1"

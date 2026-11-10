@@ -1,0 +1,54 @@
+# Deploy the Vite client to GitHub Pages at https://iceberg-games.github.io/moonk/
+# Set repo variable VITE_WS_URL to the public wss:// server (e.g. wss://moonk-server.onrender.com).
+# Project Pages require base /moonk/.
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install and build
+        env:
+          VITE_WS_URL: ${{ vars.VITE_WS_URL }}
+          VITE_BASE: /moonk/
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: |
+          if [ -z "$VITE_WS_URL" ]; then
+            echo "Repo variable VITE_WS_URL is empty. Set it to the public wss:// URL before deploying." >&2
+            exit 1
+          fi
+          npm ci
+          npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

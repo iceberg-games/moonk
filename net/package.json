@@ -1,0 +1,26 @@
+{
+  "name": "moonk-net",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone multiplayer layer for MOONK (WebSocket rooms, server-authoritative tag, pose sync).",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./client/NetClient.js",
+  "exports": {
+    ".": "./client/NetClient.js",
+    "./client": "./client/NetClient.js",
+    "./client/interpolate": "./client/interpolate.js",
+    "./server": "./server/server.mjs",
+    "./shared/protocol": "./shared/protocol.js",
+    "./shared/cosmetics": "./shared/cosmetics.js"
+  },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "test": "node tests/run.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOONK</title>
+<style>
+  html,body{margin:0;height:100%;background:#0e1118;color:#e6e9ef;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{display:flex;align-items:center;justify-content:center}
+  main{text-align:center;max-width:520px;padding:24px}
+  img{width:min(360px,70vw);height:auto;display:block;margin:0 auto 36px}
+  button{font:600 22px/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#0e1118;background:#f2f4f8;border:0;border-radius:10px;padding:22px 64px;cursor:pointer}
+  button:hover:not(:disabled){background:#fff} button:disabled{background:#3a4150;color:#9aa3b2;cursor:default}
+  p{margin:22px 0 0;color:#9aa3b2;font-size:15px;line-height:1.5} #err{color:#e8a0a0;min-height:1.4em}
+  canvas{position:fixed;inset:0;width:100%;height:100%;z-index:-1}
+</style></head>
+<body>
+<main>
+  <img src="/brand/moonk-logo.jpg" alt="MOONK" onerror="this.replaceWith(Object.assign(document.createElement('h1'),{textContent:'MOONK'}))">
+  <button id="enter" disabled>Enter VR</button>
+  <p id="note">Checking for a VR headset.</p>
+  <p id="err"></p>
+</main>
+<script type="module" src="/src/game.js"></script>
+</body></html>
