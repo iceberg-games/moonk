@@ -85,13 +85,15 @@ function buildLocust() {
   return p;
 }
 function buildYeti() {
-  const W = cm(0xeaf2ff), B = cm(0x4ea7ff), cfg = { armR: 0.07, legR: 0.09, footR: 0.13, limbM: W, legM: W, footM: W, eye: 1.6, hip: 0.75, torsoDrop: 0.5, shoulderW: 0.36, shoulderDrop: 0.28, stride: 0.2 };
+  const W = cm(0xeaf2ff), B = cm(0x4ea7ff), cfg = { noLegs: true, armR: 0.07, legR: 0.09, footR: 0.13, limbM: W, legM: W, footM: W, eye: 1.6, hip: 0.75, torsoDrop: 0.5, shoulderW: 0.36, shoulderDrop: 0.28, stride: 0.2 };
   const p = bipedBase(cfg); const { head, torso, hands } = p;
   head.add(sph(0.24, W, 1.1, 1, 1)); head.add(place(sph(0.17, B, 1.1, 0.9, 0.5), 0, -0.02, 0.15));
   head.add(place(sph(0.045, cm(0xfff04d)), -0.09, 0.06, 0.24)); head.add(place(sph(0.06, cm(0xfff04d)), 0.09, 0.08, 0.24));
   head.add(place(sph(0.02, cm(0x111)), -0.09, 0.06, 0.285)); head.add(place(sph(0.025, cm(0x111)), 0.1, 0.08, 0.295));
-  head.add(place(sph(0.17, cm(0x14040a), 1.2, 0.6, 0.6), 0, -0.1, 0.17));
-  head.add(teeth(5, 0.34, 0.1, 0.2, false, -0.03, 0.22, 3)); head.add(teeth(4, 0.28, 0.08, 0.16, true, -0.16, 0.22, 4));
+  head.add(place(sph(0.2, cm(0x14040a), 1.25, 0.75, 0.7), 0, -0.1, 0.17));   // huge mouth
+  head.add(teeth(6, 0.42, 0.16, 0.3, false, -0.03, 0.335, 3)); head.add(teeth(5, 0.36, 0.12, 0.24, true, -0.2, 0.335, 4));   // big sharp teeth
+  torso.add(place(sph(0.34, W, 1.1, 1.3, 0.95), 0, -0.45, 0));   // fur mound instead of legs
+  for (const m of [p.thighs, p.shins, p.feet, p.knees]) m.forEach((o) => { o.visible = false; });
   for (const s of [-1, 1]) head.add(place(cone(0.04, 0.16, cm(0xd9d2b8), 5), s * 0.18, 0.25, 0));
   torso.add(sph(0.3, W, 1.2, 1.15, 1)); torso.add(place(sph(0.2, B, 0.9, 0.7, 0.4), 0, -0.05, 0.22));
   for (const h of hands) { h.add(sph(0.12, W, 1, 0.9, 1)); for (let i = -1; i <= 1; i++) { const c = cone(0.02, 0.14, cm(TOOTH), 5); c.position.set(i * 0.07, 0, 0.14); c.rotation.x = Math.PI / 2; h.add(c); } }
@@ -112,14 +114,15 @@ const _f = new THREE.Vector3(), _hip = new THREE.Vector3(), _ft = new THREE.Vect
 export function poseBiped(p, pose, speed, dt, armLen = 0) {
   const c = p.cfg; _h.fromArray(pose.h); _l.fromArray(pose.l); _r.fromArray(pose.r);
   p.head.position.copy(_h); p.head.quaternion.set(...pose.q); _e.setFromQuaternion(p.head.quaternion, 'YXZ'); const yaw = _e.y;
-  p.head.rotation.set(0, yaw, 0); p.head.position.copy(_h);
-  p.torso.position.set(_h.x, _h.y - c.torsoDrop, _h.z); p.torso.rotation.set(0, yaw, 0);
-  _f.set(Math.sin(yaw), 0, Math.cos(yaw)); _sd.set(Math.cos(yaw), 0, -Math.sin(yaw));
+  p.head.rotation.set(0, yaw + Math.PI, 0); p.head.position.copy(_h);   // models face +Z; the headset looks down -Z
+  p.torso.position.set(_h.x, _h.y - c.torsoDrop, _h.z); p.torso.rotation.set(0, yaw + Math.PI, 0);
+  _f.set(-Math.sin(yaw), 0, -Math.cos(yaw)); _sd.set(Math.cos(yaw), 0, -Math.sin(yaw));
   [_l, _r].forEach((hand, i) => {
     const s = i ? 1 : -1; _sh.copy(_sd).multiplyScalar(c.shoulderW * s).add(_h); _sh.y = _h.y - c.shoulderDrop;
     if (armLen) { _v.subVectors(hand, _sh); const d = _v.length(); if (d < armLen * 0.5 && d > 0) { /* arms visually stretch to the real controller */ } }
     stretch(p.arms[i], _sh, hand); p.hands[i].position.copy(hand); p.hands[i].lookAt(hand.x * 2 - _sh.x, hand.y * 2 - _sh.y, hand.z * 2 - _sh.z);
   });
+  if (c.noLegs) return;
   p.phase += speed * dt * 4.2; const amp = Math.min(1, speed / 1.5);
   const feetY = _h.y - c.eye;
   for (let i = 0; i < 2; i++) {

@@ -11,8 +11,8 @@ export const MODES = {
   horror: { name: 'Horror: Be the Monster', blurb: '2-min rounds. One monster hunts the monkeys.', round: 120, intermission: 30 },
 };
 // Each monster has named forms. A form sets how the monster moves, whether/how far it can tag, and its look.
-//   move.type: 'stick' = smooth thumbstick locomotion + snap/smooth turn (speed m/s)
-//   Monkeys never use this: no legs, they move only by pushing off surfaces with their hands (Gorilla Tag-style locomotion).
+//   move.type: 'arms' = normal monkey hand push-off locomotion (like runners); 'stick' = smooth thumbstick locomotion + snap/smooth turn (speed m/s)
+//   Runners always use 'arms': no legs, they move only by pushing off surfaces with their hands (Gorilla Tag-style locomotion).
 //   reach: metres from the monster's head/hands to a monkey's head that counts as a catch (needs canTag)
 //   tagCooldown: seconds between catches.   switchCooldown: seconds between form switches.
 export const MONSTERS = {
@@ -21,10 +21,11 @@ export const MONSTERS = {
     forms: { main: { label: 'Locust', look: 'locust', move: { type: 'stick', speed: 1.9 }, canTag: true, reach: 2.2, tagCooldown: 0.3, scale: 1.45 } },
   },
   yeti: {
-    name: 'Yeti', startForm: 'human', switchCooldown: 6, blurb: 'Fast human form to sneak up; yeti form barely moves but has very long arms.',
+    name: 'Yeti', startForm: 'human', switchCooldown: 6, blurb: 'Blends in as a normal gray monkey (no tagging), then transforms into a huge legless yeti with very long grab arms.',
     forms: {
-      human: { label: 'Human form', look: 'human', move: { type: 'stick', speed: 7.5 }, canTag: false, reach: 0, tagCooldown: 0, scale: 1.0, switchTo: 'yeti' },
-      yeti:  { label: 'Yeti form',  look: 'yeti',  move: { type: 'stick', speed: 0.3 }, canTag: true, reach: 4.2, tagCooldown: 0.6, scale: 2.6, armLength: 4.2, switchTo: 'human' },
+      // 'human' is the form key used on the wire; it is a normal MOONK monkey that moves like the runners (hand push-off), cannot tag.
+      human: { label: 'Monkey form', look: 'monkey', move: { type: 'arms' }, canTag: false, reach: 0, tagCooldown: 0, scale: 1.0, switchTo: 'yeti' },
+      yeti:  { label: 'Yeti form',  look: 'yeti',  move: { type: 'stick', speed: 0.3 }, canTag: true, reach: 4.2, tagCooldown: 0.6, scale: 2.6, armLength: 4.2, legs: false, switchTo: 'human' },
     },
   },
 };

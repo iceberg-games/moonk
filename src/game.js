@@ -160,8 +160,11 @@ let turnCool = 0, formCool = 0;
 function step(dt) {
   if (!S.map) return; dt = Math.min(dt, 0.05); const rp = rig.position;
   const me = S.me, monster = S.room?.phase === 'play' && S.room.mode === 'horror' && me?.ro === 'monster';
-  if (monster) { const def = formDef(S.room.mType, me.fo); if (def) { stickMove(def, dt); } }
+  const mdef = monster ? formDef(S.room.mType, me.fo) : null;
+  if (monster && mdef) formSwitchInput();
+  if (mdef && mdef.move.type === 'stick') stickMove(mdef, dt);
   else {
+    if (rig.rotation.y !== 0) { tmp.copy(world.head).sub(rp).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -rig.rotation.y); tmp2.copy(world.head).sub(tmp); rp.x = tmp2.x; rp.z = tmp2.z; rig.rotation.y = 0; vel.set(0, 0, 0); }
     let any = false; const lv = [];
     for (let i = 0; i < 2; i++) {
       const hw = world.hands[i]; tmp.copy(hw).sub(rp); const h = deepest(S.cols, hw, 0.09, hit);
@@ -195,9 +198,8 @@ function stickMove(def, dt) {
   // gravity + ground
   vy -= G * dt; rp.y += vy * dt; const gnd = groundAt(S.cols, world.head.x, world.head.z, rp.y + 0.4); if (rp.y <= gnd) { rp.y = gnd; vy = 0; }
   for (const h of [0.5, 1.0, 1.5]) { const p = tmp.set(world.head.x, rp.y + h, world.head.z); const c = deepest(S.cols, p, 0.3, hit); if (c) { rp.x += c.n.x * c.d; rp.z += c.n.z * c.d; } }
-  // yeti form switch
-  if (S.room.mType && MONSTERS[S.room.mType].switchCooldown >= 0 && formDef(S.room.mType, S.me.fo)?.switchTo && (world.btn[0] || world.btn[1]) && performance.now() > formCool) { net.send({ t: 'form' }); formCool = performance.now() + 700; }
 }
+function formSwitchInput() { if (formDef(S.room.mType, S.me.fo)?.switchTo && (world.btn[0] || world.btn[1]) && performance.now() > formCool) { net.send({ t: 'form' }); formCool = performance.now() + 700; vel.set(0, 0, 0); vy = 0; } }
 
 // ------------------------------------------------------------------ terminal + portals interaction
 function interact(now) {
