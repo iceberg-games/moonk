@@ -58,7 +58,7 @@ function collect(ws) {
 
 async function client(url, name, cosmetics) {
   const c = new NetClient({ url, WebSocketImpl: WebSocket, name, cosmetics });
-  const ev = { reject: [], error: [], tag: [], cosmetics: [], join: [], leave: [], welcome: [] };
+  const ev = { reject: [], error: [], tag: [], cosmetics: [], join: [], leave: [], welcome: [], unlock: [] };
   c.on('reject', (m) => ev.reject.push(m));
   c.on('error', (m) => ev.error.push(m));
   c.on('tag', (m) => ev.tag.push(m));
@@ -66,6 +66,7 @@ async function client(url, name, cosmetics) {
   c.on('join', (m) => ev.join.push(m));
   c.on('leave', (m) => ev.leave.push(m));
   c.on('welcome', (m) => ev.welcome.push(m));
+  c.on('unlock', (m) => ev.unlock.push(m));
   c._ev = ev;
   return c;
 }
@@ -237,35 +238,105 @@ try {
   check('server still healthy after a flood', health2.ok === true, JSON.stringify(health2));
   try { hack.close(); } catch { /* */ }
 
-  // ---- cosmetics sync ------------------------------------------------------
-  const loadA = { hat: 'cap', face: 'smile', badge: 'moon', color: '#88AACC' };
+  // ---- cosmetics sync (launch kit: {v:1, hat, face, fur, hand}) -------------
+  check('server loaded the launch kit (28 items, not a handwritten list)', server.catalog?.size === 28 && server.catalog.byId.has('hat_banana_cap') && server.catalog.byId.has('fur_moonk_gray'), JSON.stringify({ size: server.catalog?.size, kit: server.catalog?.kit, path: server.catalog?.path }));
+
+  const loadA = { v: 1, hat: 'hat_banana_cap', face: 'face_star_shades', fur: 'fur_banana', hand: 'hand_boxing' };
   const f1 = await client(url, 'FashionA', loadA);
   const wf1 = await f1.createPrivate();
-  check('join accepts a valid cosmetics loadout', wf1.you?.cosmetics?.hat === 'cap' && wf1.you?.cosmetics?.color === '#88AACC', JSON.stringify(wf1.you?.cosmetics));
+  const gotA = wf1.you?.cosmetics;
+  check('join accepts a valid kit loadout', gotA?.v === 1 && gotA?.hat === 'hat_banana_cap' && gotA?.fur === 'fur_banana' && gotA?.hand === 'hand_boxing', JSON.stringify(gotA));
 
-  const f2 = await client(url, 'FashionB', { hat: 'beanie', face: 'wink', badge: 'star', color: '#112233' });
+  const f2 = await client(url, 'FashionB', { v: 1, hat: 'hat_moon_beanie', face: 'face_mustache', fur: 'fur_moonk_brown', hand: null });
   const wf2 = await f2.joinCode(wf1.room.code);
   const lateCos = (wf2.players || []).find((p) => p.id === f1.localId)?.cosmetics;
-  check('late joiner receives everyone\'s cosmetics in welcome', lateCos && lateCos.hat === 'cap' && lateCos.badge === 'moon', JSON.stringify(wf2.players));
+  check('late joiner receives everyone\'s cosmetics in welcome', lateCos && lateCos.hat === 'hat_banana_cap' && lateCos.hand === 'hand_boxing' && lateCos.fur === 'fur_banana', JSON.stringify(wf2.players));
 
   f2._ev.cosmetics.length = 0;
-  f1.setCosmetics({ hat: 'horn', face: 'mask', badge: 'comet', color: '#FF8800' });
-  const cosEv = await waitFor(() => f2._ev.cosmetics.find((c) => c.id === f1.localId && c.cosmetics?.hat === 'horn'), 1000);
-  check('cosmetics change is broadcast to the room', !!cosEv && cosEv.cosmetics.color === '#FF8800', JSON.stringify(cosEv));
+  f1.setCosmetics({ v: 1, hat: 'hat_propeller', face: 'face_bandit', fur: 'fur_midnight', hand: 'hand_banana_cuffs' });
+  const cosEv = await waitFor(() => f2._ev.cosmetics.find((c) => c.id === f1.localId && c.cosmetics?.hat === 'hat_propeller'), 1000);
+  check('cosmetics change is broadcast to the room', !!cosEv && cosEv.cosmetics.fur === 'fur_midnight' && cosEv.cosmetics.hand === 'hand_banana_cuffs', JSON.stringify(cosEv));
 
   f1._ev.reject.length = 0;
   const beforeHat = f1.players.get(f1.localId)?.cosmetics?.hat;
-  f1.setCosmetics({ hat: 'admin_crown_hack', face: 'smile', badge: 'moon', color: '#000000' });
+  f1.setCosmetics({ v: 1, hat: 'hat_admin_crown_hack', face: null, fur: 'fur_moonk_gray', hand: null });
   const badCos = await waitFor(() => f1._ev.reject.find((r) => r.for === 'cos'), 800);
-  check('non-allowlist cosmetics are rejected', !!badCos, JSON.stringify(f1._ev.reject));
+  check('unknown cosmetics ids are rejected', !!badCos, JSON.stringify(f1._ev.reject));
   await sleep(80);
   check('rejected cosmetics leave the previous loadout in place', f1.players.get(f1.localId)?.cosmetics?.hat === beforeHat, JSON.stringify(f1.players.get(f1.localId)?.cosmetics));
 
+  // Unlock-only items (hat_antenna, fur_nebula, fur_aurora, hand_glow_bands)
+  f1._ev.reject.length = 0;
+  f1.setCosmetics({ v: 1, hat: 'hat_antenna', face: null, fur: 'fur_moonk_gray', hand: null });
+  const lockedCos = await waitFor(() => f1._ev.reject.find((r) => r.for === 'cos' && r.reason === 'cosmetics_locked'), 800);
+  check('unlock-only cosmetics are rejected without an in-session unlock', !!lockedCos, JSON.stringify(f1._ev.reject));
+
+  // Refill the cosmetics token bucket (1/s, burst 3) so the unlock equip is not rate-limited.
+  await sleep(2200);
+  f1._ev.reject.length = 0;
+  f2._ev.cosmetics.length = 0;
+  check('granting an in-session unlock records it', server.grantUnlock(f1.localId, 'hat_antenna') === true);
+  f1.setCosmetics({ v: 1, hat: 'hat_antenna', face: null, fur: 'fur_moonk_gray', hand: null });
+  const unlockedHat = await waitFor(() => f2._ev.cosmetics.find((c) => c.id === f1.localId && c.cosmetics?.hat === 'hat_antenna'), 1000);
+  check('unlock-only item can be equipped after the server records the unlock', !!unlockedHat, JSON.stringify(f2._ev.cosmetics.slice(-3)));
+
   // Rate-limit cosmetics updates (1/s, burst 3).
   f1._ev.reject.length = 0;
-  for (let i = 0; i < 8; i++) f1.setCosmetics({ hat: 'leaf', face: 'grin', badge: 'leaf', color: '#ABCDEF' });
+  for (let i = 0; i < 8; i++) f1.setCosmetics({ v: 1, hat: 'hat_party_cone', face: 'face_monocle', fur: 'fur_lunar_white', hand: 'hand_moon_bracers' });
   const cosRate = await waitFor(() => f1._ev.reject.find((r) => r.for === 'cos' && r.reason === 'rate_limited'), 800);
   check('cosmetics updates are rate limited', !!cosRate, JSON.stringify(f1._ev.reject));
+
+  // Unlock progress hooks: catches, tags-in-one-life, night lobby win.
+  const uHook = await client(url, 'Unlocker');
+  await uHook.createPrivate();
+  uHook._ev.unlock.length = 0;
+  let nebula = null;
+  for (let i = 0; i < 25 && !nebula; i++) {
+    const items = server.recordCatch(uHook.localId);
+    if (items.some((it) => it.id === 'fur_nebula')) nebula = items;
+  }
+  const nebulaEv = await waitFor(() => uHook._ev.unlock.find((u) => (u.items || []).some((it) => it.id === 'fur_nebula')), 800);
+  check('25 catches in a session emit an unlock for fur_nebula', !!nebula && !!nebulaEv, JSON.stringify(nebulaEv || nebula));
+
+  const streaker = await client(url, 'Streak');
+  await streaker.createPrivate();
+  streaker._ev.unlock.length = 0;
+  let glow = null;
+  for (let i = 0; i < 3; i++) glow = server.recordCatch(streaker.localId);
+  const glowEv = await waitFor(() => streaker._ev.unlock.find((u) => (u.items || []).some((it) => it.id === 'hand_glow_bands')), 800);
+  check('3 tags in one life emit an unlock for hand_glow_bands', (glow || []).some((it) => it.id === 'hand_glow_bands') && !!glowEv, JSON.stringify(glowEv || glow));
+
+  const champ = await client(url, 'Champ');
+  await champ.createPrivate();
+  champ._ev.unlock.length = 0;
+  const aurora = server.recordLobbyWin(champ.localId, { night: true });
+  const auroraEv = await waitFor(() => champ._ev.unlock.find((u) => (u.items || []).some((it) => it.id === 'fur_aurora')), 800);
+  check('night lobby win emits an unlock for fur_aurora', aurora.some((it) => it.id === 'fur_aurora') && !!auroraEv, JSON.stringify(auroraEv || aurora));
+
+  // ---- per-role hand reach (Yeti form: 3.5 m) --------------------------------
+  const yeti = await client(url, 'Yeti');
+  const wy = await yeti.createPrivate();
+  const yp = server.findPlayer(wy.id);
+  const yetiHome = standing(0, 0);
+  for (let i = 0; i < 4; i++) { yeti.sendPose(yetiHome.h, yetiHome.l, yetiHome.r, { force: true }); await sleep(50); }
+  // As a monkey, a 3 m hand must be rejected.
+  yeti._ev.reject.length = 0;
+  const longMonkey = poseAt(0, 1.6, 0, -0.2, 1.3, 0.1, 3.0, 1.6, 0);
+  yeti.sendPose(longMonkey.h, longMonkey.l, longMonkey.r, { force: true });
+  const monkeyReachRej = await waitFor(() => yeti._ev.reject.find((r) => r.for === 'pose' && r.reason === 'reach'), 800);
+  check('monkey (default) pose with a 3 m hand is rejected', !!monkeyReachRej, JSON.stringify(yeti._ev.reject));
+
+  yp.role = 'monster'; yp.form = 'yeti';
+  yeti._ev.reject.length = 0;
+  const yetiOk = poseAt(0, 1.6, 0, -0.2, 1.3, 0.1, 3.2, 1.6, 0); // 3.2 m = armLength, under 3.5 cap
+  for (let i = 0; i < 4; i++) { yeti.sendPose(yetiOk.h, yetiOk.l, yetiOk.r, { force: true }); await sleep(50); }
+  check('Yeti form accepts a hand 3.2 m from the head', !yeti._ev.reject.some((r) => r.reason === 'reach'), JSON.stringify(yeti._ev.reject));
+
+  yeti._ev.reject.length = 0;
+  const yetiTooFar = poseAt(0, 1.6, 0, -0.2, 1.3, 0.1, 3.7, 1.6, 0);
+  yeti.sendPose(yetiTooFar.h, yetiTooFar.l, yetiTooFar.r, { force: true });
+  const yetiRej = await waitFor(() => yeti._ev.reject.find((r) => r.for === 'pose' && r.reason === 'reach'), 800);
+  check('Yeti form rejects a hand beyond 3.5 m (armLength + 0.3)', !!yetiRej, JSON.stringify(yeti._ev.reject));
 
   // No client-chosen ids: a raw join with id: 1 should be ignored (server assigns).
   const raw = await rawConnect(url);
@@ -276,7 +347,7 @@ try {
   try { raw.close(); } catch { /* */ }
 
   // Cleanup clients
-  for (const cl of [a, b, c, d, e, p1, p2, stray, q, f1, f2]) {
+  for (const cl of [a, b, c, d, e, p1, p2, stray, q, f1, f2, uHook, streaker, champ, yeti]) {
     try { cl.disconnect(); } catch { /* */ }
   }
 } catch (err) {

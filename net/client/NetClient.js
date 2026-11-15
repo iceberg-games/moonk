@@ -330,6 +330,14 @@ export class NetClient {
       this._emit('reject', m);
       return;
     }
+    if (m.t === MSG.UNLOCK) {
+      this._emit('unlock', m);
+      return;
+    }
+    if (m.t === MSG.EV) {
+      this._emit('event', m);
+      return;
+    }
     if (m.t === MSG.ERR) {
       this._emit('error', m);
     }

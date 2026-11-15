@@ -22,6 +22,17 @@ export const sfx = {
   buy() { tone(784, 0.1, { type: 'triangle', vol: 0.3 }); tone(1046, 0.1, { type: 'triangle', vol: 0.3, delay: 0.09 }); tone(1318, 0.2, { type: 'triangle', vol: 0.3, delay: 0.18 }); },
   deny() { tone(160, 0.2, { type: 'square', vol: 0.25 }); },
   form() { tone(120, 0.5, { type: 'sawtooth', vol: 0.4, slide: 300 }); noise(0.4, { vol: 0.25, freq: 600 }); },
+  giggle() { [0, 0.09, 0.18, 0.27, 0.36, 0.45].forEach((d, i) => { tone(900 + (i % 2) * 220, 0.09, { type: 'square', vol: 0.22, slide: 260, delay: d }); }); noise(0.5, { vol: 0.08, freq: 3000 }); },   // Grinner tell: quick rising giggle
+  rumble() { tone(55, 0.7, { type: 'sawtooth', vol: 0.4, slide: 25 }); noise(0.7, { vol: 0.35, freq: 220 }); },   // Burrower dive tell: low dirt rumble
+  unmask() { tone(700, 0.5, { type: 'sawtooth', vol: 0.45, slide: -560 }); tone(95, 0.7, { type: 'square', vol: 0.4, slide: -50, delay: 0.05 }); noise(0.5, { vol: 0.4, freq: 1500 }); },   // Mimic unmask: loud scream
+  inhale() { noise(0.6, { vol: 0.3, freq: 700 }); tone(260, 0.6, { type: 'sawtooth', vol: 0.2, slide: 520 }); },   // Wailer tell: a long rattling breath in
+  shriek() { tone(1500, 1.3, { type: 'sawtooth', vol: 0.45, slide: -700 }); tone(1570, 1.3, { type: 'square', vol: 0.25, slide: -760, delay: 0.03 }); noise(1.1, { vol: 0.3, freq: 2600 }); },   // Wailer shriek: piercing, falling
+  thwip() { tone(1100, 0.14, { type: 'sawtooth', vol: 0.32, slide: -850 }); noise(0.12, { vol: 0.25, freq: 3000 }); },   // Dangler tongue shot
+  snap() { noise(0.1, { vol: 0.45, freq: 1800 }); tone(220, 0.18, { type: 'square', vol: 0.35, slide: -140 }); },   // tongue hits a runner
+  slurp() { tone(300, 0.3, { type: 'sine', vol: 0.3, slide: 400 }); noise(0.2, { vol: 0.15, freq: 600 }); },   // Dangler throat swell
+  scrape() { noise(0.5, { vol: 0.35, freq: 2400 }); tone(180, 0.5, { type: 'sawtooth', vol: 0.2, slide: -60 }); noise(0.35, { vol: 0.3, freq: 3400, delay: 0.12 }); },   // Lurker cling tell: claws scraping stone
+  creak() { tone(120, 0.5, { type: 'sawtooth', vol: 0.3, slide: 90 }); tone(520, 0.4, { type: 'triangle', vol: 0.15, slide: -200, delay: 0.1 }); noise(0.3, { vol: 0.15, freq: 900 }); },   // Stringman tell: strings creaking
+  chomp() { tone(140, 0.25, { type: 'sawtooth', vol: 0.4, slide: -90 }); noise(0.2, { vol: 0.3, freq: 500 }); tone(110, 0.2, { type: 'square', vol: 0.3, slide: -60, delay: 0.3 }); },   // Gulper tell: jaw cracking open
   start() { tone(440, 0.15, { type: 'triangle', vol: 0.3 }); tone(660, 0.3, { type: 'triangle', vol: 0.3, delay: 0.15 }); },
 };
 export function buzz(src, power = 0.5, ms = 40) {

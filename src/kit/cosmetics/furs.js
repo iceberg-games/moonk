@@ -3,7 +3,13 @@
  * the monkey's existing fur meshes. They add 0 triangles.
  */
 export const FUR_SPECS = {
-  fur_moonk_gray: { fur: 0x8d9099, skin: 0xc9ccd4, emissive: 0x000000, emissiveIntensity: 0, vertexPaint: null },
+  fur_moonk_gray: {
+    fur: 0x8d9099,
+    skin: 0xc9ccd4,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
+    vertexPaint: null,
+  },
   fur_moonk_brown: {
     fur: 0x6b3f24,
     skin: 0xf3d7b0,

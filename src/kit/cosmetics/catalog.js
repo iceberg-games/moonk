@@ -3,10 +3,13 @@ import { FUR_SPECS } from './furs.js';
 import { HAND_BUILDERS } from './hands.js';
 import { HAT_BUILDERS } from './hats.js';
 
+/* Ids, slots, and the {hat, face, fur, hand} loadout match /workspace/vrtag/shared/cosmetics.mjs
+ * (the allowlist used by server/server.mjs). Currency on the client is already `moons`
+ * (save.moons). The server has no currency field yet. No real money. */
 export const CURRENCY = {
   id: 'moons',
   name: 'Moons',
-  symbol: '☾',
+  symbol: 'M',
 };
 
 export const SLOTS = ['hat', 'face', 'fur', 'hand'];
@@ -35,7 +38,7 @@ export const ITEMS = [
     price: 0,
     unlock: 'starter',
     unlockLabel: 'Starter item',
-    description: 'A peeled banana worn like a visor cap. The MOONK signature hat.',
+    description: 'A yellow cap with a wide bill and a banana pinned on the front. The MOONK signature hat.',
     build: HAT_BUILDERS.hat_banana_cap,
   },
   {
@@ -83,7 +86,7 @@ export const ITEMS = [
     price: 220,
     unlock: 'purchase',
     unlockLabel: '220 Moons',
-    description: 'An upside-down pail with a handle and a fresh banana-yellow drip.',
+    description: 'A teal paint pail worn open-rim up, with a wire handle and a yellow drip.',
     build: HAT_BUILDERS.hat_bucket,
   },
   {

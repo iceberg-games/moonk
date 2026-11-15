@@ -1,72 +1,120 @@
-// Small, allowlist-validated cosmetics loadout.
-// The game can widen these lists later; the server must keep the same catalog.
+// Cosmetics loadout validation for MOONK.
+// The allowlist is the launch kit JSON (loaded at server start, not copied here).
+// Wire shape: { v: 1, hat, face, fur, hand } — all values are catalog ids or null.
+// `hand` is a single id applied to both arms. Unknown ids are rejected.
 
-export const COSMETIC_SLOTS = {
-  hat: Object.freeze(['none', 'cap', 'beanie', 'visor', 'leaf', 'horn', 'crown']),
-  face: Object.freeze(['none', 'smile', 'grin', 'wink', 'mask', 'shades']),
-  badge: Object.freeze(['none', 'star', 'moon', 'leaf', 'comet', 'acorn']),
-};
+export const SLOTS = Object.freeze(['hat', 'face', 'fur', 'hand']);
+export const LOADOUT_VERSION = 1;
+export const MAX_ID_LEN = 48;
 
-export const COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
-export const DEFAULT_COLOR = '#C4A574';
+// Default empty loadout (kit `emptyIds`). This is the shape, not the allowlist.
 export const DEFAULT_COSMETICS = Object.freeze({
-  hat: 'none',
-  face: 'none',
-  badge: 'none',
-  color: DEFAULT_COLOR,
+  v: LOADOUT_VERSION,
+  hat: null,
+  face: null,
+  fur: 'fur_moonk_gray',
+  hand: null,
 });
 
-const MAX_FIELD_LEN = 24;
-const ALLOWED_KEYS = new Set(['hat', 'face', 'badge', 'color']);
+const ALLOWED_KEYS = new Set(['v', ...SLOTS]);
+const ID_RE = /^[a-z0-9_]+$/;
 
-function asId(v) {
-  if (typeof v !== 'string') return null;
-  if (v.length === 0 || v.length > MAX_FIELD_LEN) return null;
-  if (!/^[a-z0-9_\-]+$/i.test(v)) return null;
-  return v.toLowerCase();
+export function isUnlockOnly(item) {
+  if (!item) return false;
+  return item.unlock !== 'starter' && item.unlock !== 'purchase';
+}
+
+/** Build a catalog object from the parsed launch-kit JSON. Does not invent ids. */
+export function catalogFromJson(json, path = null) {
+  if (!json || json.version !== 1 || !Array.isArray(json.items)) {
+    throw new Error('invalid MOONK cosmetics kit: expected version 1 with an items array');
+  }
+  const byId = new Map();
+  const bySlot = { hat: new Set(), face: new Set(), fur: new Set(), hand: new Set() };
+  for (const item of json.items) {
+    if (!item || typeof item.id !== 'string' || !SLOTS.includes(item.slot)) {
+      throw new Error(`invalid cosmetics item in kit${path ? ` (${path})` : ''}`);
+    }
+    byId.set(item.id, item);
+    bySlot[item.slot].add(item.id);
+  }
+  const emptyIds = { ...DEFAULT_COSMETICS, ...(json.emptyIds || {}) };
+  return {
+    version: json.version,
+    kit: json.kit || null,
+    path,
+    slots: json.slots || [...SLOTS],
+    emptyIds: { v: LOADOUT_VERSION, hat: emptyIds.hat ?? null, face: emptyIds.face ?? null, fur: emptyIds.fur || 'fur_moonk_gray', hand: emptyIds.hand ?? null },
+    items: json.items,
+    byId,
+    bySlot,
+    size: byId.size,
+  };
+}
+
+export function defaultLoadout(catalog) {
+  const e = catalog?.emptyIds || DEFAULT_COSMETICS;
+  return { v: LOADOUT_VERSION, hat: e.hat ?? null, face: e.face ?? null, fur: e.fur || 'fur_moonk_gray', hand: e.hand ?? null };
+}
+
+function asIdOrNull(v) {
+  if (v == null) return { ok: true, id: null };
+  if (typeof v !== 'string') return { ok: false };
+  if (v.length === 0) return { ok: true, id: null };
+  if (v.length > MAX_ID_LEN || !ID_RE.test(v)) return { ok: false };
+  return { ok: true, id: v };
+}
+
+function unlocked(item, unlocks) {
+  if (!isUnlockOnly(item)) return true;
+  if (!unlocks) return false;
+  const set = unlocks instanceof Set ? unlocks : new Set(unlocks);
+  return set.has(item.id) || (item.unlock && set.has(item.unlock));
 }
 
 /**
- * Validate and sanitize a cosmetics payload.
- * Unknown keys are stripped. Invalid values fail the whole update (ok:false)
- * so a client cannot sneak a non-catalog id through. Missing keys on a
- * partial update are filled from `base` (defaults on join).
+ * Validate a loadout against a loaded kit.
+ * @param {object|null} input
+ * @param {object} opts
+ * @param {object} opts.catalog  from catalogFromJson (required on the server)
+ * @param {Set|Iterable} [opts.unlocks]  in-session unlocks for this player
+ * @param {object} [opts.base]  previous / default loadout for omitted slots
  */
-export function validateCosmetics(input, base = DEFAULT_COSMETICS) {
-  if (input == null) return { ok: true, cosmetics: { ...base } };
-  if (typeof input !== 'object' || Array.isArray(input)) {
-    return { ok: false, reason: 'cosmetics_schema' };
-  }
+export function validateCosmetics(input, opts = {}) {
+  const catalog = opts.catalog;
+  const base = opts.base || defaultLoadout(catalog);
+  if (!catalog) return { ok: false, reason: 'cosmetics_catalog' };
+  if (input == null) return { ok: true, cosmetics: { ...base, v: LOADOUT_VERSION } };
+  if (typeof input !== 'object' || Array.isArray(input)) return { ok: false, reason: 'cosmetics_schema' };
   const keys = Object.keys(input);
-  if (keys.length > 8) return { ok: false, reason: 'cosmetics_schema' };
+  if (keys.length > 10) return { ok: false, reason: 'cosmetics_schema' };
   for (const k of keys) {
     if (!ALLOWED_KEYS.has(k)) return { ok: false, reason: 'cosmetics_key' };
     const v = input[k];
-    if (typeof v === 'string' && v.length > MAX_FIELD_LEN) return { ok: false, reason: 'cosmetics_length' };
+    if (typeof v === 'string' && v.length > MAX_ID_LEN) return { ok: false, reason: 'cosmetics_length' };
   }
-  const out = { ...base };
-  if ('hat' in input) {
-    const id = asId(input.hat);
-    if (!id || !COSMETIC_SLOTS.hat.includes(id)) return { ok: false, reason: 'cosmetics_hat' };
-    out.hat = id;
+  if ('v' in input && input.v != null && Number(input.v) !== LOADOUT_VERSION) {
+    return { ok: false, reason: 'cosmetics_version' };
   }
-  if ('face' in input) {
-    const id = asId(input.face);
-    if (!id || !COSMETIC_SLOTS.face.includes(id)) return { ok: false, reason: 'cosmetics_face' };
-    out.face = id;
-  }
-  if ('badge' in input) {
-    const id = asId(input.badge);
-    if (!id || !COSMETIC_SLOTS.badge.includes(id)) return { ok: false, reason: 'cosmetics_badge' };
-    out.badge = id;
-  }
-  if ('color' in input) {
-    if (typeof input.color !== 'string' || !COLOR_RE.test(input.color)) return { ok: false, reason: 'cosmetics_color' };
-    out.color = input.color.toUpperCase();
+  const out = { v: LOADOUT_VERSION, hat: base.hat ?? null, face: base.face ?? null, fur: base.fur, hand: base.hand ?? null };
+  for (const slot of SLOTS) {
+    if (!(slot in input)) continue;
+    const parsed = asIdOrNull(input[slot]);
+    if (!parsed.ok) return { ok: false, reason: `cosmetics_${slot}` };
+    if (parsed.id == null) {
+      if (slot === 'fur') return { ok: false, reason: 'cosmetics_fur' }; // fur is required
+      out[slot] = null;
+      continue;
+    }
+    const item = catalog.byId.get(parsed.id);
+    if (!item || item.slot !== slot) return { ok: false, reason: `cosmetics_${slot}` };
+    if (!unlocked(item, opts.unlocks)) return { ok: false, reason: 'cosmetics_locked' };
+    out[slot] = parsed.id;
   }
   return { ok: true, cosmetics: out };
 }
 
 export function cosmeticsEqual(a, b) {
-  return a.hat === b.hat && a.face === b.face && a.badge === b.badge && a.color === b.color;
+  if (!a || !b) return false;
+  return a.hat === b.hat && a.face === b.face && a.fur === b.fur && a.hand === b.hand;
 }

@@ -5,11 +5,15 @@ export const HUB_SPAWN = [0, 0.9, 10];
 export const TERMINAL = { pos: [0, 1.55, 5.2] };
 export const PORTALS = [
   { id: 'play',   label: 'PLAY',            sub: 'Quick play', color: 0x6bff9a, x: -10 },
-  { id: 'normal', label: 'NORMAL',          sub: 'Infection tag', color: 0x4fb3ff, x: -6 },
-  { id: 'horror', label: 'BE THE MONSTER',  sub: 'Horror mode', color: 0xff4d4d, x: -2 },
+  { id: 'normal', label: 'CLASSIC TAG',     sub: 'Infection tag', color: 0x4fb3ff, x: -6 },
+  { id: 'horror', label: 'BE THE MONSTER',  sub: 'Hunt or hide', color: 0xff4d4d, x: -2 },
   { id: 'forest', label: 'CANOPY FOREST',   sub: 'Vote map', color: 0x59d65f, x: 2, map: 'forest' },
   { id: 'crypt',  label: 'HAUNTED CRYPT',   sub: 'Vote map', color: 0xb06bff, x: 6, map: 'crypt' },
   { id: 'marsh',  label: 'HOLLOW MARSH',    sub: 'Vote map', color: 0x7fe0c0, x: 10, map: 'marsh' },
+  { id: 'carnival', label: 'RUSTED CARNIVAL', sub: 'Vote map', color: 0xff9a3a, x: 14, map: 'carnival' },
+  { id: 'mine', label: 'HOLLOW SHAFT', sub: 'Vote map', color: 0xd9a441, x: 18, map: 'mine' },
+  { id: 'lighthouse', label: 'DROWNED LIGHTHOUSE', sub: 'Vote map', color: 0x7fb4d9, x: 22, map: 'lighthouse' },
+  { id: 'trainyard', label: 'FROZEN YARD', sub: 'Vote map', color: 0xbfe8ff, x: 26, map: 'trainyard' },
 ].map((p) => ({ ...p, pos: [p.x, 0, 17 - Math.abs(p.x) * 0.15] }));
 export function buildHub() {
   const k = new MapKit(5);

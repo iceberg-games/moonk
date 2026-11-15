@@ -7,10 +7,12 @@ import {
   DEFAULT_TAG_MODE, newBucket, take, sanitizeName,
 } from '../shared/protocol.js';
 import { parsePose, partToArr, clonePose } from '../shared/math.js';
-import { validateCosmetics, DEFAULT_COSMETICS, cosmeticsEqual } from '../shared/cosmetics.js';
+import { validateCosmetics, cosmeticsEqual, defaultLoadout } from '../shared/cosmetics.js';
+import { loadCosmeticsCatalog } from './catalog.mjs';
 import { RoomManager } from './room.mjs';
 import { checkPose } from './anticheat.mjs';
 import { tryTag, publicState } from './tag.mjs';
+import { initUnlockState, grantUnlock, recordCatch, recordTagged, recordLobbyWin, unlockEvent } from './unlocks.mjs';
 
 function encode(obj) {
   return JSON.stringify(obj);
@@ -23,6 +25,7 @@ export function startServer(options = {}) {
   const defaultMode = options.defaultMode ?? DEFAULT_TAG_MODE;
   const tickMs = options.tickMs ?? TICK_MS;
 
+  const catalog = options.catalog || loadCosmeticsCatalog(options.catalogPath);
   const rooms = new RoomManager({ maxPlayers, defaultMode, maxRooms: options.maxRooms });
   let nextId = 1;
   const sockets = new Set();
@@ -80,7 +83,11 @@ export function startServer(options = {}) {
       tags: 0,
       joinedAt: 0,
       modeHint: mode,
+      role: 'monkey',
+      form: null,
+      armLength: null,
     };
+    initUnlockState(player);
     conn.player = player;
     return player;
   }
@@ -95,7 +102,7 @@ export function startServer(options = {}) {
 
   function handleJoin(conn, kind, msg) {
     if (!take(conn.buckets.join)) return reject(conn.ws, 'rate_limited', 'join');
-    const cos = validateCosmetics(msg.cosmetics ?? msg.cos);
+    const cos = validateCosmetics(msg.cosmetics ?? msg.cos, { catalog, unlocks: new Set() });
     if (!cos.ok) return error(conn.ws, cos.reason);
     const player = attachPlayer(conn, msg.name, cos.cosmetics, msg.mode);
     let result;
@@ -119,7 +126,7 @@ export function startServer(options = {}) {
     const pose = parsePose(msg.h ?? msg.head, msg.l ?? msg.left ?? msg.lh, msg.r ?? msg.right ?? msg.rh);
     if (!pose) return reject(conn.ws, 'schema', 'pose');
     const t = now();
-    const check = checkPose({ pose: player.pose, at: player.at }, pose, t);
+    const check = checkPose({ pose: player.pose, at: player.at }, pose, t, player);
     if (!check.ok) return reject(conn.ws, check.reason, 'pose');
     recordPose(player, check.pose, t);
   }
@@ -133,15 +140,23 @@ export function startServer(options = {}) {
     if (!Number.isInteger(targetId) || targetId <= 0) return reject(conn.ws, 'schema', 'tag');
     const result = tryTag(player.room, player, targetId, now());
     if (!result.ok) return reject(conn.ws, result.reason, 'tag');
+    const target = player.room.players.get(targetId);
+    const unlocked = recordCatch(player, catalog);
+    if (target) recordTagged(target);
     bcast(player.room, result.event);
     bcast(player.room, { t: MSG.STATE, ...publicState(player.room), at: now() });
+    if (unlocked.length) send(conn.ws, unlockEvent(player, unlocked, 'catch'));
   }
 
   function handleCosmetics(conn, msg) {
     const player = conn.player;
     if (!player?.room) return reject(conn.ws, 'not_in_room', 'cos');
     if (!take(conn.buckets.cos)) return reject(conn.ws, 'rate_limited', 'cos');
-    const cos = validateCosmetics(msg.cosmetics ?? msg.cos, player.cosmetics || DEFAULT_COSMETICS);
+    const cos = validateCosmetics(msg.cosmetics ?? msg.cos, {
+      catalog,
+      unlocks: player.unlocks,
+      base: player.cosmetics || defaultLoadout(catalog),
+    });
     if (!cos.ok) return reject(conn.ws, cos.reason, 'cos');
     if (cosmeticsEqual(player.cosmetics, cos.cosmetics)) return;
     player.cosmetics = cos.cosmetics;
@@ -261,7 +276,40 @@ export function startServer(options = {}) {
     http.listen(port, host, () => {
       const bound = http.address();
       const actualPort = typeof bound === 'object' && bound ? bound.port : port;
-      ok({ port: actualPort, host, close, wss, http, rooms });
+      const findPlayer = (id) => {
+        for (const room of rooms.rooms.values()) {
+          const p = room.players.get(id);
+          if (p) return p;
+        }
+        return null;
+      };
+      const emitUnlock = (player, items, reason) => {
+        if (!player || !items?.length) return;
+        send(player.ws, unlockEvent(player, items, reason));
+      };
+      ok({
+        port: actualPort, host, close, wss, http, rooms, catalog,
+        findPlayer,
+        grantUnlock(id, token) {
+          const p = findPlayer(id);
+          if (!p) return false;
+          return grantUnlock(p, token);
+        },
+        recordLobbyWin(id, opts = {}) {
+          const p = findPlayer(id);
+          if (!p) return [];
+          const items = recordLobbyWin(p, opts, catalog);
+          emitUnlock(p, items, 'lobby_win');
+          return items;
+        },
+        recordCatch(id) {
+          const p = findPlayer(id);
+          if (!p) return [];
+          const items = recordCatch(p, catalog);
+          emitUnlock(p, items, 'catch');
+          return items;
+        },
+      });
     });
     http.on('error', bad);
   });

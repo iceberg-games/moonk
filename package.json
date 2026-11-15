@@ -8,7 +8,9 @@
     "dev:client": "vite --host 0.0.0.0 --port 5190",
     "dev:server": "node server/server.mjs",
     "build": "vite build",
-    "test": "node scripts/two-client.mjs"
+    "test": "node scripts/loco-test.mjs && node scripts/cosmetics-wire-test.mjs && node scripts/monster-test.mjs && node scripts/two-client.mjs",
+    "sync:cosmetics": "node scripts/sync-cosmetics.mjs",
+    "test:loco": "node scripts/loco-test.mjs"
   },
   "dependencies": {
     "three": "^0.169.0",

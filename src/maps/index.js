@@ -1,2 +1,2 @@
-import { buildForest } from './forest.js'; import { buildCrypt } from './crypt.js'; import { buildMarsh } from './marsh.js';
-export const BUILDERS = { forest: buildForest, crypt: buildCrypt, marsh: buildMarsh };
+import { buildForest } from './forest.js'; import { buildCrypt } from './crypt.js'; import { buildMarsh } from './marsh.js'; import { buildCarnival } from './carnival.js'; import { buildMine } from './mine.js'; import { buildLighthouse } from './lighthouse.js'; import { buildTrainyard } from './trainyard.js';
+export const BUILDERS = { forest: buildForest, crypt: buildCrypt, marsh: buildMarsh, carnival: buildCarnival, mine: buildMine, lighthouse: buildLighthouse, trainyard: buildTrainyard };

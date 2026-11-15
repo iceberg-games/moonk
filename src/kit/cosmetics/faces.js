@@ -65,18 +65,23 @@ export function buildStarShades() {
 export function buildMonocle() {
   const root = new THREE.Group();
   root.name = 'face_monocle';
-  const gold = stdMat(0xe6c35c, { metalness: 0.55, roughness: 0.35 });
-  const lens = stdMat(0xa8d8e8, { roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
-  root.add(torus(gold, 0.05, 0.01, 8, 4, 0.055, 0.02, 0.03));
-  const glass = cyl(lens, 0.045, 0.045, 0.006, 8, 0.055, 0.02, 0.03, Math.PI / 2, 0, 0);
-  root.add(glass);
-  // Chain drooping toward the right cheek / ear (boxes stay well under budget)
+  // Sit the rim on the right eye (closer, slightly under the brow) with a
+  // nose pad and a chain that arcs back to the ear, not a dangling handle.
+  const gold = stdMat(0xb08d4f, { metalness: 0.4, roughness: 0.42 });
+  const lens = stdMat(0xa8d8e8, { roughness: 0.22, metalness: 0.08, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+  const cx = 0.058, cy = 0.012, cz = 0.012;
+  root.add(torus(gold, 0.052, 0.012, 8, 5, cx, cy, cz));
+  root.add(cyl(lens, 0.046, 0.046, 0.008, 8, cx, cy, cz, Math.PI / 2, 0, 0));
+  // Nose rest toward the bridge
+  root.add(box(gold, 0.02, 0.014, 0.016, cx - 0.055, cy - 0.018, cz + 0.004, 0, 0, 0.4));
+  // Hinge nub at the outer rim
+  root.add(sphere(gold, 0.012, 5, 4, cx + 0.052, cy - 0.004, cz));
   for (let i = 0; i < 6; i++) {
     const t = (i + 1) / 6;
-    const x = 0.09 + t * 0.08;
-    const y = 0.02 - t * 0.1 - Math.sin(t * Math.PI) * 0.02;
-    const z = 0.02 - t * 0.06;
-    root.add(box(gold, 0.014, 0.014, 0.014, x, y, z));
+    const x = cx + 0.05 + t * 0.07;
+    const y = cy - 0.01 - Math.sin(t * Math.PI) * 0.045 - t * 0.02;
+    const z = cz - t * 0.1;
+    root.add(cyl(gold, 0.009, 0.009, 0.016, 5, x, y, z, 0, 0, t * 0.6));
   }
   return root;
 }
@@ -85,40 +90,38 @@ export function buildSnorkel() {
   const root = new THREE.Group();
   root.name = 'face_snorkel';
   const rubber = stdMat(0x1f6ebd);
-  const pale = stdMat(0xcfe9f5, { roughness: 0.3, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
-  const mask = cyl(rubber, 0.11, 0.11, 0.06, 8, 0, 0.0, 0.02, Math.PI / 2, 0, 0, true);
-  mask.scale.set(1.05, 0.7, 1);
+  const pale = stdMat(0xcfe9f5, { roughness: 0.35, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+  // Sit the mask on the bigger muzzle (was floating a disc in front of the face)
+  const mask = cyl(rubber, 0.1, 0.1, 0.05, 8, 0, -0.025, 0.0, Math.PI / 2, 0, 0, true);
+  mask.scale.set(1.2, 0.85, 1);
   root.add(mask);
-  const glass = cyl(pale, 0.09, 0.09, 0.012, 8, 0, 0.0, 0.04, Math.PI / 2, 0, 0);
-  glass.scale.set(1.05, 0.7, 1);
+  const glass = cyl(pale, 0.082, 0.082, 0.012, 8, 0, -0.025, 0.018, Math.PI / 2, 0, 0);
+  glass.scale.set(1.2, 0.85, 1);
   root.add(glass);
-  // Strap
-  root.add(box(stdMat(0x17324d), 0.22, 0.025, 0.04, 0, 0.0, -0.04));
-  // Tube up the left side
+  root.add(box(stdMat(0x17324d), 0.24, 0.022, 0.035, 0, -0.025, -0.05));
   const tube = stdMat(0xf5c518);
-  root.add(cyl(tube, 0.018, 0.018, 0.16, 6, -0.11, 0.1, 0.04));
-  const bend = torus(tube, 0.03, 0.018, 6, 4, -0.11, 0.18, 0.01, 0, 0, Math.PI / 2);
+  root.add(cyl(tube, 0.016, 0.016, 0.13, 6, -0.125, 0.06, 0.015));
+  const bend = torus(tube, 0.028, 0.016, 6, 4, -0.125, 0.125, -0.01, 0, 0, Math.PI / 2);
   bend.rotation.y = Math.PI / 2;
   root.add(bend);
-  root.add(cyl(stdMat(0x1a1f2e), 0.022, 0.02, 0.03, 6, -0.11, 0.18, -0.03, Math.PI / 2, 0, 0));
+  root.add(cyl(stdMat(0x1a1f2e), 0.02, 0.018, 0.028, 6, -0.125, 0.125, -0.04, Math.PI / 2, 0, 0));
   return root;
 }
 
 export function buildHudVisor() {
   const root = new THREE.Group();
   root.name = 'face_hud_visor';
-  const glow = glowMat(0x3ef0e0, 0.9, { roughness: 0.25, metalness: 0.2, side: THREE.DoubleSide });
-  const frame = stdMat(0x1a1f2e, { metalness: 0.3 });
-  // Slightly wrap the visor with three panes
+  // Matte smoked pane — no emissive glow. Sits under the brow, closer to the face.
+  const glass = stdMat(0x2f6e6a, { roughness: 0.32, metalness: 0.12, transparent: true, opacity: 0.62, side: THREE.DoubleSide });
+  const frame = stdMat(0x1a1f2e, { metalness: 0.3, roughness: 0.5 });
   for (let i = -1; i <= 1; i++) {
-    const pane = box(glow, 0.1, 0.055, 0.012, i * 0.09, 0.02, 0.03 + (i === 0 ? 0.012 : 0), 0, -i * 0.4, 0);
+    const pane = box(glass, 0.1, 0.05, 0.012, i * 0.09, 0.01, 0.02 + (i === 0 ? 0.01 : 0), 0, -i * 0.38, 0);
     root.add(pane);
   }
-  root.add(box(frame, 0.3, 0.012, 0.02, 0, 0.052, 0.03));
-  root.add(box(frame, 0.3, 0.012, 0.02, 0, -0.012, 0.03));
-  // Temples
-  root.add(box(frame, 0.08, 0.016, 0.016, 0.16, 0.02, -0.03, 0, 0.55, 0));
-  root.add(box(frame, 0.08, 0.016, 0.016, -0.16, 0.02, -0.03, 0, -0.55, 0));
+  root.add(box(frame, 0.3, 0.01, 0.018, 0, 0.038, 0.022));
+  root.add(box(frame, 0.3, 0.01, 0.018, 0, -0.018, 0.022));
+  root.add(box(frame, 0.08, 0.014, 0.014, 0.16, 0.01, -0.03, 0, 0.55, 0));
+  root.add(box(frame, 0.08, 0.014, 0.014, -0.16, 0.01, -0.03, 0, -0.55, 0));
   return root;
 }
 

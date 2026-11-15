@@ -24,7 +24,11 @@ export const MAX_SPEED = 18;            // m/s, with slack below
 export const SPEED_SLACK = 1.25;
 export const SPEED_MAX_DT = 0.25;       // seconds of movement credited per pose
 export const REJOIN_SNAP_M = 8;         // after a long gap, still reject huge teleports
-export const MAX_REACH = 1.45;          // metres, head to hand
+export const MAX_REACH = 1.45;          // metres, head to hand (monkeys / default)
+// Yeti form (game defs): armLength 3.2, server rejects hands further than armLength+0.3 = 3.5 m.
+export const YETI_ARM_LENGTH = 3.2;
+export const YETI_ARM_SLACK = 0.3;
+export const YETI_MAX_REACH = YETI_ARM_LENGTH + YETI_ARM_SLACK; // 3.5
 export const COORD_BOUND = 500;
 
 export const TAG_BODY_RADIUS = 0.5;
@@ -63,6 +67,8 @@ export const MSG = {
   STATE: 'st',
   REJ: 'rej',
   ERR: 'err',
+  UNLOCK: 'unlock',
+  EV: 'ev',
 };
 
 export function newBucket(kind) {

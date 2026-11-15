@@ -1,15 +1,37 @@
-import { MAX_REACH, MAX_SPEED, SPEED_SLACK, SPEED_MAX_DT, REJOIN_SNAP_M, STALE_POSE_MS } from '../shared/protocol.js';
+import {
+  MAX_REACH, MAX_SPEED, SPEED_SLACK, SPEED_MAX_DT, REJOIN_SNAP_M,
+  YETI_ARM_LENGTH, YETI_ARM_SLACK, YETI_MAX_REACH,
+} from '../shared/protocol.js';
 import { dist } from '../shared/math.js';
 
 /**
- * Server-side movement / reach checks. The first accepted pose is always
- * allowed (spawn). Later poses are rejected (previous state kept) if they
- * teleport faster than MAX_SPEED or put a hand beyond MAX_REACH of the head.
+ * Per-role hand-reach cap, matching the game server:
+ *   monkey / default: MAX_REACH (1.45 m)
+ *   Yeti form: armLength + 0.3 = 3.5 m (shared/defs.mjs: server rejects
+ *   hands further than armLength+0.3 so the long reach cannot be spoofed).
+ * Locust has no arm extension, so it stays on the default cap.
  */
-export function checkPose(prev, next, now) {
+export function handReachLimit(player = {}) {
+  if (player.maxReach != null && Number.isFinite(player.maxReach)) return player.maxReach;
+  const arm = player.armLength
+    ?? ((player.role === 'monster' && player.form === 'yeti') ? YETI_ARM_LENGTH : null);
+  if (arm != null && Number.isFinite(arm)) return arm + YETI_ARM_SLACK;
+  return MAX_REACH;
+}
+
+export { YETI_MAX_REACH, YETI_ARM_LENGTH, MAX_REACH };
+
+/**
+ * Server-side movement / reach checks. The first accepted pose is always
+ * allowed (spawn) once hands are inside the role's reach cap. Later poses
+ * are rejected (previous state kept) if they teleport faster than MAX_SPEED
+ * or put a hand beyond the role's reach.
+ */
+export function checkPose(prev, next, now, player = {}) {
+  const maxReach = handReachLimit(player);
   const reachL = dist(next.h.p, next.l.p);
   const reachR = dist(next.h.p, next.r.p);
-  if (reachL > MAX_REACH || reachR > MAX_REACH) {
+  if (reachL > maxReach || reachR > maxReach) {
     return { ok: false, reason: 'reach' };
   }
   if (!prev || !prev.pose) return { ok: true, pose: next };
@@ -22,14 +44,7 @@ export function checkPose(prev, next, now) {
   }
   const credit = Math.min(SPEED_MAX_DT, Math.max(dt, 1 / 60));
   const maxMove = MAX_SPEED * SPEED_SLACK * credit;
-  // A pose arriving almost immediately after the last one still cannot jump
-  // further than a single tick's budget (stops "100 m in 1 ms" teleports).
-  const tickBudget = MAX_SPEED * SPEED_SLACK * (SPEED_MAX_DT);
-  if (dt < 0.02 && moved > maxMove) return { ok: false, reason: 'speed' };
   if (moved > maxMove && moved > 0.05) return { ok: false, reason: 'speed' };
-  // Also reject if implied speed over the real dt is absurd even with slack.
   if (dt > 0 && moved / dt > MAX_SPEED * SPEED_SLACK * 2) return { ok: false, reason: 'speed' };
-  void tickBudget;
-  void STALE_POSE_MS;
   return { ok: true, pose: next };
 }

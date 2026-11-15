@@ -48,9 +48,16 @@ export function createMonkey() {
   body.scale.set(1.05, 1.18, 0.92);
   root.add(body);
 
-  const belly = skin(meshOf(new THREE.SphereGeometry(0.155, 8, 6), skinMat, 0, 0.28, 0.14));
-  belly.scale.set(0.95, 1.05, 0.55);
+  const belly = skin(meshOf(new THREE.SphereGeometry(0.165, 8, 6), skinMat, 0, 0.27, 0.13));
+  belly.scale.set(0.95, 1.1, 0.58);
   root.add(belly);
+  // hand-crafted silhouette extras (hour 2): hunched trapezius, a lighter chest patch
+  const hump = fur(meshOf(new THREE.SphereGeometry(0.2, 8, 6), furMat, 0, 0.51, -0.02));
+  hump.scale.set(1.05, 0.5, 0.8);
+  root.add(hump);
+  const chest = skin(meshOf(new THREE.SphereGeometry(0.1, 7, 5), skinMat, 0, 0.44, 0.145));
+  chest.scale.set(1.15, 0.7, 0.45);
+  root.add(chest);
 
   // --- Head ---
   const head = new THREE.Group();
@@ -63,9 +70,21 @@ export function createMonkey() {
   skull.scale.set(1.02, 0.98, 1.0);
   head.add(skull);
 
-  const snout = skin(meshOf(new THREE.SphereGeometry(0.085, 7, 6), skinMat, 0, -0.04, 0.145));
-  snout.scale.set(1.05, 0.85, 1.05);
+  // lighter face mask (heart-ish: two brow-side lobes + muzzle) over the skull
+  const mask = skin(meshOf(new THREE.SphereGeometry(0.125, 8, 6), skinMat, 0, 0.0, 0.1));
+  mask.scale.set(1.0, 0.95, 0.62);
+  head.add(mask);
+  const snout = skin(meshOf(new THREE.SphereGeometry(0.09, 8, 6), skinMat, 0, -0.045, 0.145));
+  snout.scale.set(1.28, 0.82, 1.0);
   head.add(snout);
+  const chin = skin(meshOf(new THREE.SphereGeometry(0.05, 6, 5), skinMat, 0, -0.095, 0.15));
+  chin.scale.set(1.3, 0.6, 0.9);
+  head.add(chin);
+  for (const sx of [-1, 1]) {      // cheek tufts
+    const cheek = fur(meshOf(new THREE.SphereGeometry(0.05, 6, 5), furMat, sx * 0.135, -0.04, 0.07));
+    cheek.scale.set(0.6, 1.0, 1.0);
+    head.add(cheek);
+  }
 
   const noseBridge = skin(meshOf(new THREE.SphereGeometry(0.04, 6, 5), skinMat, 0, 0.01, 0.175));
   noseBridge.scale.set(1.2, 0.7, 0.7);
@@ -78,12 +97,12 @@ export function createMonkey() {
 
   // Ears
   for (const sx of [-1, 1]) {
-    const ear = fur(meshOf(new THREE.SphereGeometry(0.075, 6, 5), furMat, sx * 0.175, 0.03, -0.01));
-    ear.scale.set(0.55, 1.0, 0.85);
+    const ear = fur(meshOf(new THREE.SphereGeometry(0.09, 7, 6), furMat, sx * 0.18, 0.02, -0.01));
+    ear.scale.set(0.5, 1.0, 0.9);
     ear.rotation.z = sx * -0.35;
     head.add(ear);
-    const inner = skin(meshOf(new THREE.SphereGeometry(0.045, 6, 5), skinMat, sx * 0.18, 0.03, 0.012));
-    inner.scale.set(0.4, 0.75, 0.55);
+    const inner = skin(meshOf(new THREE.SphereGeometry(0.055, 6, 5), skinMat, sx * 0.187, 0.02, 0.016));
+    inner.scale.set(0.35, 0.78, 0.6);
     inner.rotation.z = sx * -0.35;
     head.add(inner);
   }
@@ -99,11 +118,20 @@ export function createMonkey() {
     head.add(glint);
   }
 
-  const brow = fur(box(furMat, 0.16, 0.03, 0.04, 0, 0.07, 0.15, 0.15, 0, 0));
-  head.add(brow);
+  // heavy brow ridge: a lobe over each eye plus a bridge, tilted a touch angry so it reads from a distance
+  for (const sx of [-1, 1]) {
+    const lobe = fur(meshOf(new THREE.SphereGeometry(0.05, 7, 5), furMat, sx * 0.058, 0.073, 0.15));
+    lobe.scale.set(1.25, 0.5, 0.8);
+    lobe.rotation.z = sx * 0.28;
+    head.add(lobe);
+  }
+  const bridge = fur(meshOf(new THREE.SphereGeometry(0.03, 6, 4), furMat, 0, 0.068, 0.165));
+  bridge.scale.set(1.3, 0.6, 0.7);
+  head.add(bridge);
 
-  const mouthMesh = box(mouth, 0.055, 0.012, 0.012, 0, -0.07, 0.21, 0.1, 0, 0);
+  const mouthMesh = box(mouth, 0.08, 0.011, 0.012, 0, -0.082, 0.205, 0.1, 0, 0);
   head.add(mouthMesh);
+  for (const sx of [-1, 1]) { const corner = box(mouth, 0.026, 0.01, 0.012, sx * 0.045, -0.075, 0.2, 0.1, 0, sx * 0.55); head.add(corner); }
 
   // --- Tail (original monkey cue, not a cosmetic) ---
   const tail = new THREE.Group();
@@ -221,8 +249,8 @@ function buildArm(sign, furMat, skinMat, fur, skin) {
     wrist.rotation.x = -0.15;
     elbow.add(wrist);
 
-    const fist = fur(meshOf(new THREE.SphereGeometry(0.075, 7, 6), furMat, 0, -0.04, 0));
-    fist.scale.set(1.05, 1.15, 0.95);
+    const fist = fur(meshOf(new THREE.SphereGeometry(0.083, 8, 6), furMat, 0, -0.04, 0));
+    fist.scale.set(1.1, 1.15, 1.0);
     wrist.add(fist);
 
     // Palmar pad
@@ -230,9 +258,15 @@ function buildArm(sign, furMat, skinMat, fur, skin) {
     pad.scale.set(0.95, 1.05, 0.45);
     wrist.add(pad);
 
+    // knuckles: four chunky bumps across the back of the fist (back of the hand is -Z here)
+    for (let k = 0; k < 4; k++) {
+      const kn = fur(meshOf(new THREE.SphereGeometry(0.03, 6, 5), furMat, (k - 1.5) * 0.04, -0.082 + (k === 1 || k === 2 ? 0.008 : 0), -0.05));
+      kn.scale.set(1.0, 0.9, 0.9);
+      wrist.add(kn);
+    }
     // Thumb bump
-    const thumb = fur(meshOf(new THREE.SphereGeometry(0.028, 6, 5), furMat, sign * 0.055, -0.02, 0.03));
-    thumb.scale.set(0.8, 1.1, 0.8);
+    const thumb = fur(meshOf(new THREE.SphereGeometry(0.034, 6, 5), furMat, sign * 0.07, -0.02, 0.03));
+    thumb.scale.set(0.8, 1.2, 0.85);
     wrist.add(thumb);
 
     const handAttach = new THREE.Object3D();

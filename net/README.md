@@ -31,7 +31,7 @@ const net = new NetClient({ url: 'ws://localhost:8787', name: 'Colin' });
 net.on('tag', (ev) => console.log('tagged', ev));
 net.on('cosmetics', (ev) => applyLoadout(ev.id, ev.cosmetics));
 await net.quickJoin();              // or net.createPrivate() / net.joinCode('ABC23X')
-net.setCosmetics({ hat: 'cap', face: 'smile', badge: 'moon', color: '#88AACC' });
+net.setCosmetics({ v: 1, hat: 'hat_banana_cap', face: 'face_star_shades', fur: 'fur_banana', hand: 'hand_boxing' });
 
 function tick() {
   net.sendPose(head, leftHand, rightHand);   // each is { p:[x,y,z], q:[x,y,z,w] }; throttled to 20 Hz
@@ -75,6 +75,8 @@ Player ids are **server-assigned**. A client-chosen `id` is ignored.
 | `cos` | `{ id, cosmetics }` broadcast on change; late joiners also see loadouts on `welcome` |
 | `rej` | `{ reason, for }` (`pose`, `tag`, `cos`, `join`, `msg`, …) |
 | `err` | Join/room-level error (`not_found`, `room_full`, `bad_code`, …) |
+| `unlock` | Personal unlock: `{ id, items, reason, progress }` |
+| `ev` | Game events after merge (`formstart`, `form`, …) — see MERGE.md |
 | `hb` | Heartbeat reply `{ ts, ping }` for clock offset |
 
 ### Rooms
@@ -104,16 +106,18 @@ The first player in a room is It. If every It leaves, the longest-present remain
 - 4 KB message cap (`ws` `maxPayload` + an application check).
 - Schema validation (finite coordinates, unit-ish quaternions, known message types).
 - Max movement speed (~18 m/s with slack); teleports rejected; last legal pose kept and **not** broadcast.
-- Hand-reach cap (1.45 m from head to hand).
+- Hand-reach cap, **per role**: 1.45 m for monkeys; **3.5 m** in Yeti form (`armLength` 3.2 + 0.3), matching the game server.
 - No client-chosen ids.
 
 These are heuristics, not a complete anti-cheat.
 
 ### Cosmetics
 
-A small allowlisted loadout: `hat`, `face`, `badge`, `color` (`#RRGGBB`). Unknown keys or non-catalog ids are rejected (the previous loadout stays). Sent on join and on change, rate-limited, and included in `welcome` so late joiners see everyone. Placeholder catalog is in `shared/cosmetics.js`.
+The allowlist is the MOONK Cosmetics launch kit, loaded at server start from `/workspace/moonk-cosmetics/cosmetics.json` (or `MOONK_COSMETICS_PATH`). Ids are not copied into this package. The wire loadout is `{ v: 1, hat, face, fur, hand }` — each value is a catalog id or `null`. `hand` is a **single** id applied to both arms. Default fur is `fur_moonk_gray`.
 
-**Merge note:** the game v1 catalog in `/workspace/vrtag/shared/cosmetics.mjs` uses slots `fur`, `hat`, `face`, `hand` and a larger item list. When wiring this package to the game, adopt *that* catalog rather than the placeholders here.
+Unknown ids are rejected (previous loadout stays). Unlock-only items (`hat_antenna`, `fur_nebula`, `fur_aurora`, `hand_glow_bands`) are rejected unless that player's in-session `unlocks` set contains the item (or its unlock key). Purchase and starter items are allowed. Updates are rate-limited and broadcast; late joiners receive everyone's loadout on `welcome`.
+
+Progress hooks (`recordCatch`, `recordTagged`, `recordLobbyWin`) emit a personal `{ t: 'unlock', ... }` event when a threshold is met. The "hub 5 days" unlock cannot be granted until persistent identity exists — see [MERGE.md](./MERGE.md).
 
 ## Tests
 
@@ -140,7 +144,7 @@ What we did **not** reuse: Iceberg's transport is **Supabase Realtime** (Phoenix
 
 Another bot is building the game at `/workspace/vrtag`. As of this writing it already has `server/server.mjs` plus `shared/defs.mjs` and `shared/cosmetics.mjs`. **This package does not replace or overwrite those files.**
 
-See the merge / harden notes at the end of [HOSTING.md](./HOSTING.md) and the "Open questions" in the report to Colin. Short version: keep their game rules (map votes, normal/horror modes, monster forms, auto tag-detect); import this package's rooms, validation, anti-cheat, interpolation client, and 20 Hz compact snapshots.
+Wire-format mapping for the game's snapshot fields (`xf`, `xt`, `fc`, `formstart`, `form`, `phaseEnds`) is in **[MERGE.md](./MERGE.md)**. Short version: keep their round and monster logic untouched; attach those fields beside net's compact pose arrays. Also see the merge notes at the end of [HOSTING.md](./HOSTING.md).
 
 ## Hosting
 
