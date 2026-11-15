@@ -10,3 +10,5 @@ server/accounts.json.tmp
 server/bans.json
 *.log
 .DS_Store
+server/inventory.json
+server/inventory.json.tmp

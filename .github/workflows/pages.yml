@@ -1,5 +1,5 @@
 # Deploy the Vite client to GitHub Pages at https://iceberg-games.github.io/moonk/
-# Set repo variable VITE_WS_URL to the public wss:// server (e.g. wss://moonk-server.onrender.com).
+# Repo variable VITE_WS_URL: a public wss:// game server enables multiplayer; empty/unset = single-player build (no server needed).
 # Project Pages require base /moonk/.
 name: Deploy GitHub Pages
 
@@ -33,8 +33,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: |
           if [ -z "$VITE_WS_URL" ]; then
-            echo "Repo variable VITE_WS_URL is empty. Set it to the public wss:// URL before deploying." >&2
-            exit 1
+            echo "VITE_WS_URL is empty: building the single-player client (AI players, local Moons). Set the repo variable to a wss:// server to enable multiplayer."
           fi
           npm ci
           npm run build
